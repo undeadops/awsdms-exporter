@@ -19,7 +19,7 @@ FROM build_base AS build_binaries
 COPY . .
 # And compile the project
 #RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go install -ldflags '-w -extldflags "-static"' .
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go install
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install ./cmd/dms-exporter
 
 
 FROM debian:stretch-slim AS release
@@ -30,7 +30,7 @@ ENV DEBIAN_VERSION stretch
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -qq \
-    ca-certificates \
+    ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
