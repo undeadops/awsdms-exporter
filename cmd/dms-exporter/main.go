@@ -62,6 +62,7 @@ func getClient() aws.Config {
 	if *role != "" {
 		// Create the credentials from AssumeRoleProvider to assume the role
 		// referenced by the "myRoleARN" ARN.
+		logger.Info("Assuming role: ", *role)
 		stsSvc := sts.New(cfg)
 		stsCredProvider := stscreds.NewAssumeRoleProvider(stsSvc, *role)
 
