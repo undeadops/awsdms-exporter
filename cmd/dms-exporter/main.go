@@ -2,9 +2,8 @@ package main
 
 import (
 	"context"
-	"flag"
-	//"fmt"
 	"errors"
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -17,9 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	//"github.com/aws/aws-sdk-go-v2/aws/endpoints"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
-	//"github.com/aws/aws-sdk-go-v2/aws/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/databasemigrationservice"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
@@ -85,14 +82,6 @@ func getClient() aws.Config {
 	}
 
 	if *role != "" {
-		// Create the credentials from AssumeRoleProvider to assume the role
-		// referenced by the "myRoleARN" ARN.
-		logger.Info("Assuming role: ", *role)
-		// stsSvc := sts.New(cfg)
-		// stsCredProvider := stscreds.NewAssumeRoleProvider(stsSvc, *role)
-
-		// cfg.Credentials = stsCredProvider
-
 		// assume role
 		svc := sts.New(cfg)
 		input := &sts.AssumeRoleInput{RoleArn: aws.String(*role), RoleSessionName: aws.String(roleSessionName)}
@@ -169,8 +158,10 @@ func getMigrationInstances() {
 }
 
 func tasks() {
+	// TODO: Changing Logging to be structured and event based
 	go func() {
 		for {
+			logger.Info("Chedcking Migration tasks. ", *role)
 			getMigrationTasks()
 			// TODO: Maybe make this tunable?
 			time.Sleep(45 * time.Second)
@@ -179,6 +170,7 @@ func tasks() {
 
 	go func() {
 		for {
+			logger.Info("Checking Migration instances. ", *role)
 			getMigrationInstances()
 			time.Sleep(45 * time.Second)
 		}
