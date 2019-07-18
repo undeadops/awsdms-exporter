@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	//"fmt"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -18,9 +19,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	//"github.com/aws/aws-sdk-go-v2/aws/endpoints"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
-	"github.com/aws/aws-sdk-go-v2/aws/stscreds"
+	//"github.com/aws/aws-sdk-go-v2/aws/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/databasemigrationservice"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+)
+
+var (
+	roleSessionName = "assumeTestRole"
 )
 
 var addr = flag.String("listen-address", ":8080", "The address to listen on for HTTP requests.")
@@ -52,6 +57,26 @@ var (
 	)
 )
 
+// CredentialsProvider - Holder of credentials
+type CredentialsProvider struct {
+	*sts.Credentials
+}
+
+// Retrieve - Retriver of api keys
+func (s CredentialsProvider) Retrieve() (aws.Credentials, error) {
+
+	if s.Credentials == nil {
+		return aws.Credentials{}, errors.New("sts credentials are nil")
+	}
+
+	return aws.Credentials{
+		AccessKeyID:     aws.StringValue(s.AccessKeyId),
+		SecretAccessKey: aws.StringValue(s.SecretAccessKey),
+		SessionToken:    aws.StringValue(s.SessionToken),
+		Expires:         aws.TimeValue(s.Expiration),
+	}, nil
+}
+
 func getClient() aws.Config {
 	cfg, err := external.LoadDefaultAWSConfig()
 	// TODO: This will SEGFAULT, as error isn't fully handled
@@ -63,10 +88,22 @@ func getClient() aws.Config {
 		// Create the credentials from AssumeRoleProvider to assume the role
 		// referenced by the "myRoleARN" ARN.
 		logger.Info("Assuming role: ", *role)
-		stsSvc := sts.New(cfg)
-		stsCredProvider := stscreds.NewAssumeRoleProvider(stsSvc, *role)
+		// stsSvc := sts.New(cfg)
+		// stsCredProvider := stscreds.NewAssumeRoleProvider(stsSvc, *role)
 
-		cfg.Credentials = stsCredProvider
+		// cfg.Credentials = stsCredProvider
+
+		// assume role
+		svc := sts.New(cfg)
+		input := &sts.AssumeRoleInput{RoleArn: aws.String(*role), RoleSessionName: aws.String(roleSessionName)}
+		out, err := svc.AssumeRoleRequest(input).Send(context.Background())
+		if err != nil {
+			logger.Errorf("aws assume role %s: %v", *role, err)
+		}
+
+		awsConfig := svc.Config.Copy()
+		awsConfig.Credentials = CredentialsProvider{Credentials: out.Credentials}
+		cfg = awsConfig
 	}
 
 	// Set AWS Region
